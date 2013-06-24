@@ -9,8 +9,8 @@ interface that queries the server and returns results based on the query.
 nanonid fork
 ======
 
-# remove lxml.  lxml is a supreme PITA
-# make pysolr pure python
+* remove lxml.  lxml is a supreme PITA
+* make pysolr pure python
 
 Features
 ========
