@@ -9,50 +9,20 @@ import requests
 import time
 import types
 import ast
+import json
 
-try:
-    # Prefer lxml, if installed.
-    from lxml import etree as ET
-except ImportError:
-    try:
-        from xml.etree import cElementTree as ET
-    except ImportError:
-        raise ImportError("No suitable ElementTree implementation was found.")
+from xml.etree import cElementTree as ET
 
-try:
-    # Prefer simplejson, if installed.
-    import simplejson as json
-except ImportError:
-    import json
+from urllib import urlencode
 
-try:
-    # Python 3.X
-    from urllib.parse import urlencode
-except ImportError:
-    # Python 2.X
-    from urllib import urlencode
+import htmlentitydefs as htmlentities
 
-try:
-    # Python 3.X
-    import html.entities as htmlentities
-except ImportError:
-    # Python 2.X
-    import htmlentitydefs as htmlentities
-
-try:
-    # Python 2.X
-    unicode_char = unichr
-except NameError:
-    # Python 3.X
-    unicode_char = chr
-    # Ugh.
-    long = int
-
+# Python 2.X
+unicode_char = unichr
 
 __author__ = 'Daniel Lindsley, Joseph Kocherhans, Jacob Kaplan-Moss'
 __all__ = ['Solr']
-__version__ = (3, 0, 5)
-
+__version__ = (3, 0, 6)
 
 def get_version():
     return "%s.%s.%s" % __version__[:3]
@@ -291,6 +261,7 @@ class Solr(object):
 
         if int(resp.status_code) != 200:
             error_message = self._extract_error(resp)
+            print( str(error_message) + ": code " + str(resp.status_code) )
             self.log.error(error_message, extra={'data': {'headers': resp.headers,
                                                           'response': resp.content}})
             raise SolrError(error_message)
@@ -365,11 +336,17 @@ class Solr(object):
         """
         Extract the actual error message from a solr response.
         """
+        dom_tree = ET.fromstring(resp.content)
         reason = resp.headers.get('reason', None)
         full_html = None
 
         if reason is None:
-            reason, full_html = self._scrape_response(resp.headers, resp.content)
+            lsterror = dom_tree.find(".//lst[@name='error']")
+            if not lsterror is None:
+                code = lsterror.find(".//int[@name='code']").text
+                reason = lsterror.find(".//str[@name='msg']").text
+            else:
+                reason, full_html = self._scrape_response(resp.headers, resp.content)
 
         msg = "[Reason: %s]" % reason
 
@@ -390,47 +367,31 @@ class Solr(object):
             server_type = 'jetty'
 
         if server_string and 'coyote' in server_string.lower():
-            import lxml.html
             server_type = 'tomcat'
 
         reason = None
         full_html = ''
         dom_tree = None
 
-        if server_type == 'tomcat':
-            # Tomcat doesn't produce a valid XML response
-            soup = lxml.html.fromstring(response)
-            body_node = soup.find('body')
-            p_nodes = body_node.cssselect('p')
+        try:
+            dom_tree = ET.fromstring(response)
 
-            for p_node in p_nodes:
-                children = p_node.getchildren()
 
-                if len(children) >= 2 and 'message' in children[0].text.lower():
-                    reason = children[1].text
+            reason_node = None
+
+            # html page might be different for every server
+            if server_type == 'jetty':
+                reason_node = dom_tree.find('body/pre')
+            else:
+                reason_node = dom_tree.find('head/title')
+
+            if reason_node is not None:
+                reason = reason_node.text
 
             if reason is None:
-                from lxml.html.clean import clean_html
-                full_html = clean_html(response)
-        else:
-            # Let's assume others do produce a valid XML response
-            try:
-                dom_tree = ET.fromstring(response)
-                reason_node = None
-
-                # html page might be different for every server
-                if server_type == 'jetty':
-                    reason_node = dom_tree.find('body/pre')
-                else:
-                    reason_node = dom_tree.find('head/title')
-
-                if reason_node is not None:
-                    reason = reason_node.text
-
-                if reason is None:
-                    full_html = ET.tostring(dom_tree)
-            except SyntaxError as err:
-                full_html = "%s" % response
+                full_html = ET.tostring(dom_tree)
+        except SyntaxError as err:
+            full_html = "%s" % response
 
         full_html = full_html.replace('\n', '')
         full_html = full_html.replace('\r', '')
