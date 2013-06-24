@@ -5,6 +5,12 @@ pysolr
 ``pysolr`` is a lightweight Python wrapper for Apache Solr. It provides an
 interface that queries the server and returns results based on the query.
 
+======
+nanonid fork
+======
+
+# remove lxml.  lxml is a supreme PITA
+# make pysolr pure python
 
 Features
 ========
