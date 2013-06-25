@@ -9,8 +9,9 @@ interface that queries the server and returns results based on the query.
 nanonid fork
 ======
 
-* remove lxml.  lxml is a supreme PITA
+* remove lxml.  lxml as a compiled library is a supreme PITA
 * make pysolr pure python
+* focus on latest python 2.7 (not 3.x), latest tomcat 7, latest SOLR 4.x
 
 Features
 ========
@@ -22,14 +23,11 @@ Features
 * Timeout support.
 
 
-Requirements
+Requirements (nanonid fork)
 ============
 
-* Python 2.6-3.3
+* Python 2.7+ 
 * Requests 1.1.0+
-* **Optional** - ``lxml``
-* **Optional** - ``simplejson``
-* **Optional** - ``cssselect`` for Tomcat error support
 
 
 Installation
@@ -130,4 +128,4 @@ Setup looks like::
 Running the tests::
 
     python -m unittest2 tests
-    python3 -m unittest tests
+
